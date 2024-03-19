@@ -56,8 +56,6 @@ const MainPage = () => {
        //console.log("e.target.result", e);
        setObj(JSON.parse(e.target.result).payload[0].questions);
      }
-
-     
    }
  };
 
