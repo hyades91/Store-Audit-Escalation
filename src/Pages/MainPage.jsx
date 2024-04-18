@@ -42,31 +42,36 @@ const MainPage = () => {
   const [storeList, setStoreList] = useState(null); 
   const [questionList, setQuestionList] = useState(null); 
 
-  const [treshold, setTreshold] = useState(0,3); 
+  const [treshold, setTreshold] = useState(0.3); 
+console.log("treshold:"+treshold)
+  const [escalationTable, setEscalationTable] = useState(null); 
+  const [selectedEscCat, setSelectedEscCat] = useState(["Hygiene and Sanitation","Date code","Allergens","Cold chain","Pest control"]); 
   const escalationCategories=[
     {
       name: "Hygiene and Sanitation",
-      codeID: ["1.10","1.12","1.16","2.07","2.09","2.12","3.09","4.09"]
+      codeIDs: ["1.10","1.12","1.16","2.07","2.09","2.12","3.09","4.09"]
     },
     {
       name: "Date code",
-      codeID: ["1.20","1.21","2.18","3.17","4.18", "5.18",  "6.17",  "7.17",  "8.10", "10.01", "14.11"
-      ]
+      codeIDs: ["1.20","1.21","2.18","3.17","4.18", "5.18",  "6.17",  "7.17",  "8.10", "10.01", "14.11"]
     },
     {
       name: "Allergens",
-      codeID: ["1.27", "2.14","2.21","2.22", "2.24", "4.21","5.12", "7.13"]
+      codeIDs: ["1.27", "2.14","2.21","2.22", "2.24", "4.21","5.12", "7.13"]
     },
     {
       name: "Cold chain",
-      codeID: ["9.06","9.07","9.08","9.11","9.12", "9.13","9.14"]
+      codeIDs: ["9.06","9.07","9.08","9.11","9.12", "9.13","9.14"]
     },
     {
       name: "Pest control",
-      codeID: ["11.13","11.14"]
+      codeIDs: ["11.13","11.14"]
     }
   ]
-
+  const [escalationSumTableActive, setEscalationSumTableActive]=useState(false)
+  const [escalationTableActive, setEscalationTableActive]=useState(false)
+  const [summaryTableActive, setSummaryTableActive]=useState(true)
+  
  //--File UPLOADER - START
  //const [obj, setObj] = useState();
  const [rawFile, setRawFile] = useState();
@@ -120,9 +125,67 @@ function sumTableUpdater(obj){
         */
         }
     });
-    setSumTable(newTable)
+    setSumTable(newTable.sort((elem1,elem2)=>Number(elem1.codeID)>Number(elem2.codeID)?1:-1))
   }
   setRawObj(obj)
+}
+
+const calculateEscalation = (newDetailedList)=>{
+  console.log((question=>question.result===-1).length/newDetailedList.filter(question=>question.result===1||question.result===-1).length)
+  console.log (treshold)
+  return newDetailedList.filter(question=>question.result===-1).length/
+  newDetailedList.filter(question=>question.result===1||question.result===-1).length>=treshold
+}
+const calculateEscalationRatio = (newDetailedList)=>{
+  return newDetailedList.filter(question=>question.result===-1).length/
+  newDetailedList.filter(question=>question.result===1||question.result===-1).length
+}
+
+const makeEscalationTable = (store) =>{
+  let EscalationTable=[]
+  escalationCategories.forEach(category=>{
+    let newDetailedList=[]
+    category.codeIDs.forEach(id=>{
+      let filteredQuestion=sumTable.filter(question=>question.codeID===id)[0]
+      let filteredStore
+      if (filteredQuestion){
+        filteredStore=filteredQuestion.line.filter(st=>st.storeNO===store.storeNO)[0]
+      }
+      if  (store.storeNO===44077)
+      {     console.log(id)
+        console.log("filteredQuestion:"+filteredQuestion)
+        console.log("filteredStore:"+filteredStore)
+      }
+ 
+      newDetailedList.push(
+        {
+          codeID: id,
+          result: filteredQuestion?filteredStore?filteredStore.resultG?1:filteredStore.resultR?-1:0:0:0
+        }
+      )
+
+    })
+    EscalationTable.push({
+      categoryName: category.name,
+      detailedList: newDetailedList,
+      escalation: calculateEscalation(newDetailedList),
+      escalationRatio: calculateEscalationRatio(newDetailedList)
+    })
+  })
+ return EscalationTable
+}
+
+const makeStoreEscalationTable=()=>{
+  let newEscalationTable=[]
+  storeList.forEach(store=>{
+    let newStore={
+      storeNO: store.storeNO,
+      storeNam: store.storeNam,
+      escalationTable: makeEscalationTable(store)
+    }
+    newEscalationTable.push(newStore)
+})
+setEscalationTable(newEscalationTable)
 }
 
   const linkChanger = (e) => {
@@ -143,8 +206,6 @@ function sumTableUpdater(obj){
     else if(e.target.className==="endDateSelector"){
       setEndDate(e.target.value)
     }
-
-
   }
   
   useEffect(() => {
@@ -163,12 +224,19 @@ function sumTableUpdater(obj){
   }, [sumTable,rawObj]);
   
 
+  useEffect(() => {
+    console.log("hello2")
+    
+  }, [sumTable,rawObj]);
+  
+
   console.log(link)
   //console.log(startDate)
   //console.log(endDate)
   console.log(sumTable)
   console.log(storeList)
   console.log(questionList)
+  console.log(escalationTable)
 
   
  
@@ -207,13 +275,118 @@ function sumTableUpdater(obj){
             <div>{rawFile && `${rawFile.name} - ${rawFile.type}`}</div>
             <h3>Click on "Update" button </h3>
             <button onClick={()=>console.log(sumTable)}>Update</button>
+        
+            <h3>StoreEscalation </h3>
+            <button onClick={()=>makeStoreEscalationTable()}>Create StoreEscalationData</button>
           </div>
 
         </div>
-
-        {sumTable&&storeList&&
-        <div className="MainTable">
+{/*ESCALATION SUMMARY TABLE*/}
+<button onClick={()=>escalationSumTableActive?setEscalationSumTableActive(false):setEscalationSumTableActive(true)}>StoreEscalationSummaryTable</button>
+        
+        {escalationSumTableActive&&sumTable&&storeList&&
+       <div className="EscalationTable">
         <table >
+
+          <thead>
+            <tr >
+              <th></th>
+                {escalationTable.map(e=>
+                  <th  key={e.storeNO}>{e.storeNO}</th>
+                )}
+            </tr>
+            <tr>
+              <th >Escalation Category</th>
+              {escalationTable.map(e=>
+                <th key={e.storeNO}>{e.storeNam}</th>
+              )}
+            </tr>
+          </thead>
+    
+          <tbody>
+              {selectedEscCat.map(catName=>
+                  
+                  <tr>
+          
+                    <th style={{ width: 200, fontWeight: 'bold', border: '1px solid black'}}>{catName}</th>
+                   
+                    {escalationTable.map(st=>
+                    <td key={st.storeNO} >{st.escalationTable.filter(esc=>esc.categoryName===catName)[0].escalationRatio}</td>
+                    )}
+                  
+                  </tr>
+                  
+              )}
+          </tbody>
+
+        </table>
+      </div>
+    }
+
+
+
+<br></br>
+        <button onClick={()=>escalationTableActive?setEscalationTableActive(false):setEscalationTableActive(true)}>StoreEscalationTable</button>
+        
+        {escalationTableActive&&sumTable&&storeList&&
+       <div className="EscalationTable">
+        <table >
+
+          <thead>
+            <tr >
+              <th></th>
+              <th></th>
+              <th></th>
+                {sumTable[0].line.map(s=>
+                  <th  key={s.storeNO}>{s.storeNO}</th>
+                )}
+            </tr>
+            <tr>
+              <th >Escalation Category</th>
+              <th >Question Code</th>
+              <th >Question____________________________________________________</th>
+              {sumTable[0].line.map(s=>
+                <th key={s.storeNO}>{s.storeNam}</th>
+              )}
+            </tr>
+          </thead>
+    
+          <tbody>
+              {selectedEscCat.map(catName=>
+                  escalationCategories.filter(escCat=>escCat.name===catName)[0].codeIDs.map(id=>
+                  <tr key={id} >
+          
+                    <th style={{border: '1px solid black'}}>{catName}</th>
+                    <th style={{border: '1px solid black' }}>{id}</th>
+                    <th style={{border: '1px solid black' }}>{sumTable.map(s=>s.codeID).includes(id)?sumTable.filter(s=>s.codeID===id)[0].task:"Not availabe"}</th>
+                    
+                    {storeList.map(st=>
+                    <td key={st.storeNO} style={{ border: '1px solid black' }} >{!sumTable.map(s=>s.codeID).includes(id)?"NA":
+                    !sumTable.filter(s=>s.codeID===id)[0].line.map(store=>store.storeNO).includes(st.storeNO)?"NA":
+                    sumTable.filter(s=>s.codeID===id)[0].line.filter(store=>store.storeNO===st.storeNO)[0].resultG?"G":
+                    sumTable.filter(s=>s.codeID===id)[0].line.filter(store=>store.storeNO===st.storeNO)[0].resultR?"R":
+                    "NA"}</td>
+                    )}
+                  
+                  </tr>
+                  )
+              )}
+          </tbody>
+
+        </table>
+      </div>
+    }
+
+
+
+{/*SUMMARY TABLE WITH ALL RESULTS*/}
+      <br></br>
+      <button onClick={()=>summaryTableActive?setSummaryTableActive(false):setSummaryTableActive(true)}>SummaryTable</button>
+
+        {summaryTableActive&&sumTable&&storeList&&
+       <div className="MainTable">
+        <table >
+
           <thead>
             <tr >
               <th></th>
@@ -232,7 +405,6 @@ function sumTableUpdater(obj){
           </thead>
     
           <tbody>
-
               {sumTable.map(q=>
                   <tr key={q.codeID} style={{ width: 200, fontWeight: 'bold', border: '1px solid black'}}>{q.codeID}
                       <td style={{ width: 200, fontWeight: 'bold', border: '1px solid black' }}>{q.task}</td>
@@ -241,9 +413,8 @@ function sumTableUpdater(obj){
                       )}
                   </tr>
               )}
-
           </tbody>
-    
+
         </table>
       </div>
     }
