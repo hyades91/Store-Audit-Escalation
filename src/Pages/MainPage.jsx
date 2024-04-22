@@ -6,6 +6,7 @@ import { UserContext } from "./..";
 import { useNavigate } from "react-router-dom";
 //import Loading from "../Components/Loading";
 import urlString from "./..";
+import ExportToExcel from '../ExportToExcel.jsx'
 var XLSX = require("xlsx")
 
 //GET FINISHED VISITS
@@ -72,6 +73,12 @@ console.log("treshold:"+treshold)
   const [escalationTableActive, setEscalationTableActive]=useState(false)
   const [summaryTableActive, setSummaryTableActive]=useState(true)
   
+
+
+  //Excel
+  const [data, setData] = useState([])
+  const fileName = "Escalation_table";
+
  //--File UPLOADER - START
  //const [obj, setObj] = useState();
  const [rawFile, setRawFile] = useState();
@@ -186,6 +193,29 @@ const makeStoreEscalationTable=()=>{
     newEscalationTable.push(newStore)
 })
 setEscalationTable(newEscalationTable)
+setCustomHeadings(newEscalationTable)
+
+
+}
+
+const setCustomHeadings =(newEscalationTable)=>{
+  const customHeadings = newEscalationTable.map(store =>{
+      let storeObj={
+        "Store Number":store.storeNO,
+        "Store Name":store.storeNam,
+      }
+    selectedEscCat.forEach(category=>{
+      storeObj[category]=store.escalationTable.filter(esc=>esc.categoryName===category)[0].escalationRatio
+    })
+    return storeObj
+    })
+    
+  
+  //})
+  //console.log("Exp:")
+  //console.log(filteredStoreList)
+  console.log(customHeadings)
+  setData(customHeadings) 
 }
 
   const linkChanger = (e) => {
@@ -283,7 +313,10 @@ setEscalationTable(newEscalationTable)
         </div>
 {/*ESCALATION SUMMARY TABLE*/}
 <button onClick={()=>escalationSumTableActive?setEscalationSumTableActive(false):setEscalationSumTableActive(true)}>StoreEscalationSummaryTable</button>
-        
+<div className="ExportButton">
+        <ExportToExcel apiData={data} fileName={fileName} />
+</div>
+
         {escalationSumTableActive&&sumTable&&storeList&&
        <div className="EscalationTable">
         <table >
